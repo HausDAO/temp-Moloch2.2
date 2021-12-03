@@ -10,13 +10,13 @@ let yeeter;
 let wrapper;
 let moloch;
 let molochSummoner;
-
+let Moloch;
 
 describe("Moloch Summoner", function () {
   beforeEach(async function () {
     [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
 
-    const Moloch = await hre.ethers.getContractFactory("Moloch");
+    Moloch = await hre.ethers.getContractFactory("Moloch");
     const MolochSummoner = await hre.ethers.getContractFactory(
       "MolochSummoner"
     );
@@ -46,7 +46,9 @@ describe("Moloch Summoner", function () {
 
       console.log("MolochSummoner deployed to:", molochSummoner.address);
       console.log("owner.address", owner.address);
-
+      /* Summon new dao 
+      Summoner will have one share
+      */
       const sum = await molochSummoner.summonMoloch(
         owner.address,
         [wrapper.address],
@@ -55,13 +57,32 @@ describe("Moloch Summoner", function () {
         1,
         0,
         3,
-        0,
-        yeeter.address
+        0
       );
       const idx = await molochSummoner.daoIdx();
-      console.log("idx daoIdx", idx);
+      console.log("idx daoIdx", idx.toString());
       const newMoloch = await molochSummoner.daos(idx);
       console.log("sum...", newMoloch);
+
+      const mol = await Moloch.attach(newMoloch);
+      let mem = await mol.members(owner.address);
+      expect(mem.shares.toString()).to.equal("1");
+      console.log("owner shares", mem.shares.toString());
+      /* Summoner can make a function call to set more summoners and to set the shaman
+      this currently could be run multiple times if the summoner does not set a shaman the first time
+      should force this to be one time only
+      shaman could be set to a yeeter or a minion
+       */
+      const multiSummon = await mol.multiSummon(
+        yeeter.address,
+        [owner.address, addr1.address, addr2.address],
+        ["9", "10", "10"]
+      );
+      mem = await mol.members(owner.address);
+      expect(mem.shares.toString()).to.equal("10");
+
+      /* Configure the shaman(yeeter) that was added to the moloch
+       */
       const inityeet = await yeeter.init(
         newMoloch,
         wrapper.address,
@@ -73,6 +94,8 @@ describe("Moloch Summoner", function () {
         "200"
       );
 
+      /* Send funds to the yeeter which will update the loot
+       */
       const params = {
         to: yeeter.address,
         value: ethers.utils.parseUnits("9.1", "ether").toHexString(),
@@ -80,21 +103,10 @@ describe("Moloch Summoner", function () {
       const stx = await owner.sendTransaction(params);
       const summonerDeposit = await yeeter.deposits(owner.address);
       console.log("summonerDeposit", summonerDeposit.toString());
-
-      // const mol = await Mol.attach('0xd8058efe0198ae9dd7d563e1b4938dcbc86a1f81');
-      // let mem = await mol.members('0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266')
-
-      // unit is 1 so should have returned the .1 and 1 should be left
+      // unitPrice is 1 so should have returned the .1 and 9 should be left
       expect(summonerDeposit.toString()).to.equal(
         ethers.utils.parseUnits("9", "ether")
       );
-
-      // const setGreetingTx = await greeter.setGreeting("Hola, mundo!");
-
-      // // wait until the transaction is mined
-      // await setGreetingTx.wait();
-
-      // expect(await greeter.greet()).to.equal("Hola, mundo!");
     });
   });
 });

@@ -328,6 +328,25 @@ contract Moloch is ReentrancyGuard {
         emit SetShaman(_shaman);
     }
 
+    function multiSummon(
+        address _shaman,
+        address[] memory _summoners,
+        uint256[] memory _summonerShares
+    ) public onlyMember {
+        require(shaman == address(0), "shaman already set");
+        require(_summoners.length == _summonerShares.length, "mismatch");
+        require(proposalCount == 0, "dao is already active");
+
+        // require no proposals (fresh dao)?
+        for (uint256 i = 0; i < _summoners.length; i++) {
+            _setSharesLoot(_summoners[i], _summonerShares[i], 0, true);
+        }
+        shaman = _shaman;
+        emit SetShaman(_shaman);
+
+    }
+    // original summoner only set shaman
+
     function setSharesLoot(
         address applicant,
         uint256 shares,
@@ -397,8 +416,7 @@ contract Moloch is ReentrancyGuard {
         uint256 _gracePeriodLength,
         uint256 _proposalDeposit,
         uint256 _dilutionBound,
-        uint256 _processingReward,
-        address _shaman
+        uint256 _processingReward
     ) external {
         require(!initialized, "initialized");
 
@@ -427,8 +445,6 @@ contract Moloch is ReentrancyGuard {
             "_proposalDeposit < _processingReward"
         );
 
-        // first token is alway a shaman and second is deposittoken
-        shaman = _shaman;
         depositToken = _approvedTokens[0];
 
         require(_summoner != address(0), "summoner cannot be 0");
@@ -1329,26 +1345,6 @@ contract Moloch is ReentrancyGuard {
     }
 }
 
-/*
-The MIT License (MIT)
-Copyright (c) 2018 Murray Software, LLC.
-Permission is hereby granted, free of charge, to any person obtaining
-a copy of this software and associated documentation files (the
-"Software"), to deal in the Software without restriction, including
-without limitation the rights to use, copy, modify, merge, publish,
-distribute, sublicense, and/or sell copies of the Software, and to
-permit persons to whom the Software is furnished to do so, subject to
-the following conditions:
-The above copyright notice and this permission notice shall be included
-in all copies or substantial portions of the Software.
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
 contract CloneFactory {
     // implementation of eip-1167 - see https://eips.ethereum.org/EIPS/eip-1167
     function createClone(address target) internal returns (address result) {
@@ -1389,14 +1385,7 @@ contract MolochSummoner is CloneFactory {
         uint256 gracePeriodLength,
         uint256 proposalDeposit,
         uint256 dilutionBound,
-        uint256 processingReward,
-        address shaman
-    );
-    event SummonerInitComplete(
-        address indexed moloch,
-        address[] summoner,
-        uint256[] summonerShares,
-        uint256[] summonerLoot
+        uint256 processingReward
     );
 
 
@@ -1408,8 +1397,7 @@ contract MolochSummoner is CloneFactory {
         uint256 _gracePeriodLength,
         uint256 _proposalDeposit,
         uint256 _dilutionBound,
-        uint256 _processingReward,
-        address _shaman
+        uint256 _processingReward
     ) public returns (address) {
         Moloch moloch = Moloch(createClone(template));
 
@@ -1421,8 +1409,7 @@ contract MolochSummoner is CloneFactory {
             _gracePeriodLength,
             _proposalDeposit,
             _dilutionBound,
-            _processingReward,
-            _shaman
+            _processingReward
         );
         console.log("Summon complete", address(moloch));
         daoIdx = daoIdx + 1;
@@ -1436,8 +1423,7 @@ contract MolochSummoner is CloneFactory {
             _gracePeriodLength,
             _proposalDeposit,
             _dilutionBound,
-            _processingReward,
-            _shaman
+            _processingReward
         );
 
         return address(moloch);

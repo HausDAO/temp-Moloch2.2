@@ -3,27 +3,13 @@ pragma solidity ^0.6.1;
 import "./MolochFlat.sol";
 import "./Wrapper.sol";
 
-/**
-    "tributeToken":"0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d",
-    "tributeTokenSymbol":"wxDAI",
-    "claimTokenAddress":"0x97Edc0e345FbBBd8460847Fcfa3bc2a13bF8641F",
-    "claimTokenSymbol":"RICE",
-    "ratio":"1.42",
-    "raiseStartTime":"1622898000",
-    "raiseEndTime":"1622984400",
-    "claimPeriodStartTime":"1623070800",
-    "minTarget":"100",
-    "maxTarget":"34500",
-    "maxContribution":"500",
-    "minContribution":"100",
-     */
 contract Yeeter {
     event Received(address, uint256);
     mapping(address => uint256) public deposits;
     uint256 maxTarget;
     uint256 raiseEndTime;
     uint256 raiseStartTime;
-    uint256 maxUnitsPerAddr; // do we need to worry about this (maybe do incrmental, like nft set price, so many units)
+    uint256 maxUnitsPerAddr; 
     uint256 pricePerUnit;
     uint256 lootPerUnit;
 
@@ -34,10 +20,10 @@ contract Yeeter {
     function init(
         address _moloch,
         address payable _wrapper,
-        uint256 _maxTarget,
+        uint256 _maxTarget, // max raise target
         uint256 _raiseEndTime,
         uint256 _raiseStartTime,
-        uint256 _maxUnits,
+        uint256 _maxUnits, // per individual
         uint256 _pricePerUnit,
         uint256 _lootPerUnit
     ) public {
@@ -54,6 +40,7 @@ contract Yeeter {
 
     }
 
+    // set sumoners (share holders)
     receive() external payable {
         require(msg.value > pricePerUnit, "< minimum");
         require(balance < maxTarget, "Max Target reached");
@@ -91,10 +78,94 @@ contract Yeeter {
         balance = balance + newValue;
         moloch.setSharesLoot(msg.sender, 0, numUnits * lootPerUnit, true);
 
-        emit Received(msg.sender, msg.value);
+        emit Received(msg.sender, newValue);
     }
 
     // function goalReached() public view return (bool) {
     //     return balance == maxCap;
     // }
 }
+
+
+// contract CloneFactory1 {
+//     // implementation of eip-1167 - see https://eips.ethereum.org/EIPS/eip-1167
+//     function createClone(address target) internal returns (address result) {
+//         bytes20 targetBytes = bytes20(target);
+//         assembly {
+//             let clone := mload(0x40)
+//             mstore(
+//                 clone,
+//                 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000000000000000000000
+//             )
+//             mstore(add(clone, 0x14), targetBytes)
+//             mstore(
+//                 add(clone, 0x28),
+//                 0x5af43d82803e903d91602b57fd5bf30000000000000000000000000000000000
+//             )
+//             result := create(0, clone, 0x37)
+//         }
+//     }
+// }
+
+// contract YeetSummoner is CloneFactory1 {
+//     address public template;
+//     mapping(uint256 => address) public yeeters;
+//     uint256 public yeetIdx = 0;
+
+//     // Moloch private moloch; // moloch contract
+
+//     constructor(address _template) public {
+//         template = _template;
+//     }
+
+//     event SummonYeetComplete(
+//         address indexed moloch,
+//         address wrapper,
+//         uint256 maxTarget,
+//         uint256 raiseEndTime,
+//         uint256 raiseStartTime,
+//         uint256 maxUnits,
+//         uint256 pricePerUnit,
+//         uint256 lootPerUnit
+//     );
+
+
+//     function summonYeet(
+//         address _moloch,
+//         address payable _wrapper,
+//         uint256 _maxTarget,
+//         uint256 _raiseEndTime,
+//         uint256 _raiseStartTime,
+//         uint256 _maxUnits,
+//         uint256 _pricePerUnit,
+//         uint256 _lootPerUnit
+//     ) public returns (address) {
+//         Yeeter yeeter = Yeeter(createClone(template));
+
+//         yeeter.init(
+//         _moloch,
+//         _wrapper,
+//         _maxTarget,
+//         _raiseEndTime,
+//         _raiseStartTime,
+//         _maxUnits,
+//         _pricePerUnit,
+//         _lootPerUnit
+//         );
+//         yeetIdx = yeetIdx + 1;
+//         yeeters[yeetIdx] = address(yeeter);
+//         emit SummonYeetComplete(
+//         _moloch,
+//         _wrapper,
+//         _maxTarget,
+//         _raiseEndTime,
+//         _raiseStartTime,
+//         _maxUnits,
+//         _pricePerUnit,
+//         _lootPerUnit
+//         );
+
+//         return address(yeeter);
+//     }
+
+// }
