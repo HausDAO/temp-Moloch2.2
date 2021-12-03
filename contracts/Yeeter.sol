@@ -31,25 +31,27 @@ contract Yeeter {
     Moloch public moloch;
     Wrapper public wrapper;
 
-    function init(address _moloch, address payable _wrapper)
-        public
-    {
+    function init(
+        address _moloch,
+        address payable _wrapper,
+        uint256 _maxTarget,
+        uint256 _raiseEndTime,
+        uint256 _raiseStartTime,
+        uint256 _maxUnits,
+        uint256 _pricePerUnit,
+        uint256 _lootPerUnit
+    ) public {
         require(address(moloch) == address(0), "already set");
         moloch = Moloch(_moloch);
         wrapper = Wrapper(_wrapper);
 
-        // maxTarget = _maxTarget;
-        // raiseEndTime = _raiseEndTime;
-        // raiseStartTime = _raiseStartTime;
-        // maxUnitsPerAddr = _maxUnits; 
-        // pricePerUnit = _pricePerUnit;
-        // lootPerUnit = _lootPerUnit;
-        maxTarget = 100000000000000000000;
-        raiseEndTime = 1622898000000;
-        raiseStartTime = 0;
-        maxUnitsPerAddr = 10; 
-        pricePerUnit = 1000000000000000000;
-        lootPerUnit = 200;
+        maxTarget = _maxTarget;
+        raiseEndTime = _raiseEndTime;
+        raiseStartTime = _raiseStartTime;
+        maxUnitsPerAddr = _maxUnits;
+        pricePerUnit = _pricePerUnit;
+        lootPerUnit = _lootPerUnit;
+
     }
 
     receive() external payable {

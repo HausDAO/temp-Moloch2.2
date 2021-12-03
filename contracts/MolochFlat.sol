@@ -219,6 +219,9 @@ contract Moloch is ReentrancyGuard {
         uint256 loot,
         bool mint
     );
+    event SetShaman(
+        address indexed shaman
+    );
     event TokensCollected(address indexed token, uint256 amountToCollect);
     event CancelProposal(uint256 indexed proposalId, address applicantAddress);
     event UpdateDelegateKey(
@@ -316,6 +319,13 @@ contract Moloch is ReentrancyGuard {
     modifier onlyShaman() {
         require(shaman == msg.sender, "!shaman");
         _;
+    }
+
+    function setShaman(
+        address _shaman
+    ) public onlyShaman {
+        shaman = _shaman;
+        emit SetShaman(_shaman);
     }
 
     function setSharesLoot(
