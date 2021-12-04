@@ -316,6 +316,14 @@ contract Moloch is ReentrancyGuard {
         _;
     }
 
+    modifier onlyDelegateOrShaman() {
+        require(
+            members[memberAddressByDelegateKey[msg.sender]].shares > 0 || shaman == msg.sender,
+            "not a delegate or shaman"
+        );
+        _;
+    }
+
     modifier onlyShaman() {
         require(shaman == msg.sender, "!shaman");
         _;
@@ -1151,7 +1159,7 @@ contract Moloch is ReentrancyGuard {
         emit Withdraw(msg.sender, token, amount);
     }
 
-    function collectTokens(address token) public onlyDelegate nonReentrant {
+    function collectTokens(address token) public onlyDelegateOrShaman nonReentrant {
         uint256 amountToCollect = IERC20(token).balanceOf(address(this)).sub(
             userTokenBalances[TOTAL][token]
         );

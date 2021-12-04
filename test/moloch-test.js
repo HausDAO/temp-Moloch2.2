@@ -10,7 +10,9 @@ let yeeter;
 let wrapper;
 let moloch;
 let molochSummoner;
+let yeetSummoner;
 let Moloch;
+let Yeeter;
 
 describe("Moloch Summoner", function () {
   beforeEach(async function () {
@@ -20,12 +22,17 @@ describe("Moloch Summoner", function () {
     const MolochSummoner = await hre.ethers.getContractFactory(
       "MolochSummoner"
     );
-    const Yeeter = await hre.ethers.getContractFactory("Yeeter");
+    Yeeter = await hre.ethers.getContractFactory("Yeeter");
+    const YeetSummoner = await hre.ethers.getContractFactory("YeetSummoner");
     const Wrapper = await hre.ethers.getContractFactory("Wrapper");
 
     yeeter = await Yeeter.deploy();
     await yeeter.deployed();
     console.log("Yeeter deployed to:", yeeter.address);
+
+    yeetSummoner = await YeetSummoner.deploy(yeeter.address);
+    await yeetSummoner.deployed();
+    console.log("YeetSummoner deployed to:", yeetSummoner.address);
 
     wrapper = await Wrapper.deploy();
     await wrapper.deployed();
@@ -62,28 +69,11 @@ describe("Moloch Summoner", function () {
       const idx = await molochSummoner.daoIdx();
       console.log("idx daoIdx", idx.toString());
       const newMoloch = await molochSummoner.daos(idx);
-      console.log("sum...", newMoloch);
+      console.log("sum Mol...", newMoloch);
 
-      const mol = await Moloch.attach(newMoloch);
-      let mem = await mol.members(owner.address);
-      expect(mem.shares.toString()).to.equal("1");
-      console.log("owner shares", mem.shares.toString());
-      /* Summoner can make a function call to set more summoners and to set the shaman
-      this currently could be run multiple times if the summoner does not set a shaman the first time
-      should force this to be one time only
-      shaman could be set to a yeeter or a minion
+      /* Deploy and configure the shaman(yeeter) 
        */
-      const multiSummon = await mol.multiSummon(
-        yeeter.address,
-        [owner.address, addr1.address, addr2.address],
-        ["9", "10", "10"]
-      );
-      mem = await mol.members(owner.address);
-      expect(mem.shares.toString()).to.equal("10");
-
-      /* Configure the shaman(yeeter) that was added to the moloch
-       */
-      const inityeet = await yeeter.init(
+      const yeet = await yeetSummoner.summonYeet(
         newMoloch,
         wrapper.address,
         ethers.utils.parseUnits("100", "ether"),
@@ -94,18 +84,47 @@ describe("Moloch Summoner", function () {
         "200"
       );
 
+      const yeetIdx = await yeetSummoner.yeetIdx();
+      console.log("idx yeetIdx", yeetIdx.toString());
+      const newYeet = await yeetSummoner.yeeters(yeetIdx);
+      console.log("sum Yeet...", newYeet);
+
+      const ye = await Yeeter.attach(newYeet);
+      let ymol = await ye.moloch();
+      console.log('ymol', ymol.toString());
+
+
+      /* Summoner can make a function call to set more summoners and to set the shaman
+      this currently could be run multiple times if the summoner does not set a shaman the first time
+      should force this to be one time only
+      shaman could be set to a yeeter or a minion
+       */
+      const mol = await Moloch.attach(newMoloch);
+      const multiSummon = await mol.multiSummon(
+        newYeet,
+        [owner.address, addr1.address, addr2.address],
+        ["9", "10", "10"]
+      );
+      let mem = await mol.members(owner.address);
+      expect(mem.shares.toString()).to.equal("10");
+
       /* Send funds to the yeeter which will update the loot
        */
-      const params = {
-        to: yeeter.address,
+      let params = {
+        to: newYeet,
         value: ethers.utils.parseUnits("9.1", "ether").toHexString(),
       };
       const stx = await owner.sendTransaction(params);
-      const summonerDeposit = await yeeter.deposits(owner.address);
+      params = {
+        to: newYeet,
+        value: ethers.utils.parseUnits("1.1", "ether").toHexString(),
+      };
+      const stx1 = await owner.sendTransaction(params);
+      const summonerDeposit = await ye.deposits(owner.address);
       console.log("summonerDeposit", summonerDeposit.toString());
       // unitPrice is 1 so should have returned the .1 and 9 should be left
       expect(summonerDeposit.toString()).to.equal(
-        ethers.utils.parseUnits("9", "ether")
+        ethers.utils.parseUnits("10", "ether")
       );
     });
   });
