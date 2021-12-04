@@ -17,7 +17,6 @@ let Yeeter;
 describe("Moloch Summoner", function () {
   beforeEach(async function () {
     [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
-    console.log('!!!!!!!', addrs);
 
     Moloch = await hre.ethers.getContractFactory("Moloch");
     const MolochSummoner = await hre.ethers.getContractFactory(
@@ -88,7 +87,6 @@ describe("Moloch Summoner", function () {
       const yeetIdx = await yeetSummoner.yeetIdx();
       console.log("idx yeetIdx", yeetIdx.toString());
       const newYeet = await yeetSummoner.yeeters(yeetIdx);
-      console.log("sum Yeet...", newYeet);
 
       const ye = await Yeeter.attach(newYeet);
       let ymol = await ye.moloch();
@@ -104,7 +102,8 @@ describe("Moloch Summoner", function () {
       const multiSummon = await mol.multiSummon(
         newYeet,
         [owner.address, addr1.address, addr2.address],
-        ["9", "10", "10"]
+        ["9", "10", "10"],
+        ["0", "0", "0"]
       );
       let mem = await mol.members(owner.address);
       expect(mem.shares.toString()).to.equal("10");

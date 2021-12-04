@@ -140,6 +140,7 @@ contract Moloch is ReentrancyGuard {
 
     address public depositToken; // deposit token contract reference; default = wETH
     address public shaman; // shaman
+    address public minionShaman; // shaman
 
     // HARD-CODED LIMITS
     // These numbers are quite arbitrary; they are small enough to avoid overflows when doing calculations
@@ -220,7 +221,8 @@ contract Moloch is ReentrancyGuard {
         bool mint
     );
     event SetShaman(
-        address indexed shaman
+        address indexed shaman,
+        bool isMinion
     );
     event TokensCollected(address indexed token, uint256 amountToCollect);
     event CancelProposal(uint256 indexed proposalId, address applicantAddress);
@@ -318,39 +320,50 @@ contract Moloch is ReentrancyGuard {
 
     modifier onlyDelegateOrShaman() {
         require(
-            members[memberAddressByDelegateKey[msg.sender]].shares > 0 || shaman == msg.sender,
+            members[memberAddressByDelegateKey[msg.sender]].shares > 0 || shaman == msg.sender || minionShaman == msg.sender,
             "not a delegate or shaman"
         );
         _;
     }
 
     modifier onlyShaman() {
-        require(shaman == msg.sender, "!shaman");
+        require(shaman == msg.sender || minionShaman == msg.sender, "!shaman");
         _;
     }
 
+    // TODO: allow more than one shaman? 
+    // allow shaman to change starting conditions, maybe only if no active props
+    // 
     function setShaman(
-        address _shaman
+        address _shaman,
+        bool _isMinion
     ) public onlyShaman {
+        if(_isMinion){
+        minionShaman = _shaman;
+        } else {
         shaman = _shaman;
-        emit SetShaman(_shaman);
+        }
+        emit SetShaman(_shaman, _isMinion);
     }
 
     function multiSummon(
         address _shaman,
+        // bool _isMinion,
         address[] memory _summoners,
-        uint256[] memory _summonerShares
+        uint256[] memory _summonerShares,
+        uint256[] memory _summonerLoot
     ) public onlyMember {
         // if no proposals and no shaman any member can call this
         require(shaman == address(0), "shaman already set");
+        shaman = _shaman;
+        emit SetShaman(_shaman, true);
         require(_summoners.length == _summonerShares.length, "mismatch");
+        require(_summoners.length == _summonerLoot.length, "mismatch");
         require(proposalCount == 0, "dao is already active");
 
         for (uint256 i = 0; i < _summoners.length; i++) {
-            _setSharesLoot(_summoners[i], _summonerShares[i], 0, true);
+            _setSharesLoot(_summoners[i], _summonerShares[i], _summonerLoot[i], true);
         }
-        shaman = _shaman;
-        emit SetShaman(_shaman);
 
     }
 
