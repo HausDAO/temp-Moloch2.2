@@ -331,9 +331,6 @@ contract Moloch is ReentrancyGuard {
         _;
     }
 
-    // TODO: allow more than one shaman? 
-    // allow shaman to change starting conditions, maybe only if no active props
-    // 
     function setShaman(
         address _shaman,
         bool _isMinion
@@ -365,6 +362,22 @@ contract Moloch is ReentrancyGuard {
             _setSharesLoot(_summoners[i], _summonerShares[i], _summonerLoot[i], true);
         }
 
+    }
+    function reconfigure (
+        uint256 _periodDuration,
+        uint256 _votingPeriodLength,
+        uint256 _gracePeriodLength,
+        uint256 _proposalDeposit,
+        uint256 _dilutionBound,
+        uint256 _processingReward
+    ) public onlyShaman {
+        // TODO: require no active
+        periodDuration = _periodDuration; 
+        votingPeriodLength = _votingPeriodLength;
+        gracePeriodLength = _gracePeriodLength;
+        proposalDeposit = _proposalDeposit; 
+        dilutionBound = _dilutionBound; 
+        processingReward = _processingReward;
     }
 
     function setSharesLoot(
