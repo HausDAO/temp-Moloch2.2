@@ -17,6 +17,7 @@ let Yeeter;
 describe("Moloch Summoner", function () {
   beforeEach(async function () {
     [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
+    console.log('!!!!!!!', addrs);
 
     Moloch = await hre.ethers.getContractFactory("Moloch");
     const MolochSummoner = await hre.ethers.getContractFactory(

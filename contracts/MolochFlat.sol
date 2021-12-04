@@ -341,11 +341,11 @@ contract Moloch is ReentrancyGuard {
         address[] memory _summoners,
         uint256[] memory _summonerShares
     ) public onlyMember {
+        // if no proposals and no shaman any member can call this
         require(shaman == address(0), "shaman already set");
         require(_summoners.length == _summonerShares.length, "mismatch");
         require(proposalCount == 0, "dao is already active");
 
-        // require no proposals (fresh dao)?
         for (uint256 i = 0; i < _summoners.length; i++) {
             _setSharesLoot(_summoners[i], _summonerShares[i], 0, true);
         }
@@ -353,7 +353,6 @@ contract Moloch is ReentrancyGuard {
         emit SetShaman(_shaman);
 
     }
-    // original summoner only set shaman
 
     function setSharesLoot(
         address applicant,
