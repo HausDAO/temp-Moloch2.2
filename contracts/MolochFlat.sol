@@ -140,6 +140,8 @@ contract Moloch is ReentrancyGuard {
     bool private initialized; // internally tracks deployment under eip-1167 proxy pattern
 
     address public depositToken; // deposit token contract reference; default = wETH
+
+    // can have multiple shamans, maybe first one is the 'minionshaman'
     address public shaman; // shaman
     address public minionShaman; // shaman
 
@@ -326,19 +328,17 @@ contract Moloch is ReentrancyGuard {
         _;
     }
 
-    modifier onlyShaman() {
-        require(shaman == msg.sender || minionShaman == msg.sender, "!shaman");
+    modifier onlyShamanOrNew() {
+        require(
+            (members[msg.sender].shares > 0 ||
+                (members[msg.sender].loot > 0 && proposalCount == 0)) ||
+                (shaman == msg.sender || minionShaman == msg.sender),
+            "!shaman"
+        );
         _;
     }
 
-    function setupShaman(address _shaman) public onlyMember {
-        // if no proposals and no shaman any member can call this
-        require(shaman == address(0), "shaman already set");
-        require(proposalCount == 0, "dao is already active");
-        minionShaman = _shaman;
-        emit SetShaman(_shaman, true);
-    }
-    function setShaman(address _shaman, bool _isMinion) public onlyShaman {
+    function setShaman(address _shaman, bool _isMinion) public onlyShamanOrNew {
         if (_isMinion) {
             minionShaman = _shaman;
         } else {
@@ -347,12 +347,13 @@ contract Moloch is ReentrancyGuard {
         emit SetShaman(_shaman, _isMinion);
     }
 
+    // allow summoner to do this is no active props
     function setSharesLoot(
         address[] memory _summoners,
         uint256[] memory _summonerShares,
         uint256[] memory _summonerLoot,
         bool mint
-    ) public onlyShaman {
+    ) public onlyShamanOrNew {
         require(_summoners.length == _summonerShares.length, "mismatch");
         require(_summoners.length == _summonerLoot.length, "mismatch");
         for (uint256 i = 0; i < _summoners.length; i++) {
