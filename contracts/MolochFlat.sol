@@ -1,6 +1,7 @@
 pragma solidity 0.6.1;
 
 import "hardhat/console.sol";
+
 /**
  * @dev Contract module that helps prevent reentrant calls to a function.
  *
@@ -139,7 +140,10 @@ contract Moloch is ReentrancyGuard {
     bool private initialized; // internally tracks deployment under eip-1167 proxy pattern
 
     address public depositToken; // deposit token contract reference; default = wETH
+
+    // can have multiple shamans, maybe first one is the 'minionshaman'
     address public shaman; // shaman
+    address public minionShaman; // shaman
 
     // HARD-CODED LIMITS
     // These numbers are quite arbitrary; they are small enough to avoid overflows when doing calculations
@@ -219,9 +223,7 @@ contract Moloch is ReentrancyGuard {
         uint256 loot,
         bool mint
     );
-    event SetShaman(
-        address indexed shaman
-    );
+    event SetShaman(address indexed shaman, bool isMinion);
     event TokensCollected(address indexed token, uint256 amountToCollect);
     event CancelProposal(uint256 indexed proposalId, address applicantAddress);
     event UpdateDelegateKey(
@@ -318,49 +320,56 @@ contract Moloch is ReentrancyGuard {
 
     modifier onlyDelegateOrShaman() {
         require(
-            members[memberAddressByDelegateKey[msg.sender]].shares > 0 || shaman == msg.sender,
+            members[memberAddressByDelegateKey[msg.sender]].shares > 0 ||
+                shaman == msg.sender ||
+                minionShaman == msg.sender,
             "not a delegate or shaman"
         );
         _;
     }
 
-    modifier onlyShaman() {
-        require(shaman == msg.sender, "!shaman");
+    modifier onlyShamanOrNew() {
+        require(
+            (members[msg.sender].shares > 0 ||
+                (members[msg.sender].loot > 0 && proposalCount == 0)) ||
+                (shaman == msg.sender || minionShaman == msg.sender),
+            "!shaman"
+        );
         _;
     }
 
-    function setShaman(
-        address _shaman
-    ) public onlyShaman {
-        shaman = _shaman;
-        emit SetShaman(_shaman);
-    }
-
-    function multiSummon(
-        address _shaman,
-        address[] memory _summoners,
-        uint256[] memory _summonerShares
-    ) public onlyMember {
-        // if no proposals and no shaman any member can call this
-        require(shaman == address(0), "shaman already set");
-        require(_summoners.length == _summonerShares.length, "mismatch");
-        require(proposalCount == 0, "dao is already active");
-
-        for (uint256 i = 0; i < _summoners.length; i++) {
-            _setSharesLoot(_summoners[i], _summonerShares[i], 0, true);
+    function setShaman(address _shaman, bool _isMinion) public onlyShamanOrNew {
+        if (_isMinion) {
+            minionShaman = _shaman;
+        } else {
+            shaman = _shaman;
         }
-        shaman = _shaman;
-        emit SetShaman(_shaman);
-
+        emit SetShaman(_shaman, _isMinion);
     }
 
+    // allow summoner to do this is no active props
     function setSharesLoot(
-        address applicant,
-        uint256 shares,
-        uint256 loot,
+        address[] memory _summoners,
+        uint256[] memory _summonerShares,
+        uint256[] memory _summonerLoot,
         bool mint
-    ) public onlyShaman {
-        _setSharesLoot(applicant, shares, loot, mint);
+    ) public onlyShamanOrNew {
+        require(_summoners.length == _summonerShares.length, "mismatch");
+        require(_summoners.length == _summonerLoot.length, "mismatch");
+        for (uint256 i = 0; i < _summoners.length; i++) {
+            _setSharesLoot(
+                _summoners[i],
+                _summonerShares[i],
+                _summonerLoot[i],
+                mint
+            );
+            emit Shaman(
+                _summoners[i],
+                _summonerShares[i],
+                _summonerLoot[i],
+                mint
+            );
+        }
     }
 
     function _setSharesLoot(
@@ -412,7 +421,6 @@ contract Moloch is ReentrancyGuard {
             totalShares.add(shares).add(loot) <= MAX_NUMBER_OF_SHARES_AND_LOOT,
             "too many shares requested"
         );
-        emit Shaman(applicant, shares, loot, mint);
     }
 
     function init(
@@ -1158,7 +1166,11 @@ contract Moloch is ReentrancyGuard {
         emit Withdraw(msg.sender, token, amount);
     }
 
-    function collectTokens(address token) public onlyDelegateOrShaman nonReentrant {
+    function collectTokens(address token)
+        public
+        onlyDelegateOrShaman
+        nonReentrant
+    {
         uint256 amountToCollect = IERC20(token).balanceOf(address(this)).sub(
             userTokenBalances[TOTAL][token]
         );
@@ -1395,7 +1407,6 @@ contract MolochSummoner is CloneFactory {
         uint256 processingReward
     );
 
-
     function summonMoloch(
         address _summoner,
         address[] memory _approvedTokens,
@@ -1435,5 +1446,4 @@ contract MolochSummoner is CloneFactory {
 
         return address(moloch);
     }
-
 }

@@ -44,7 +44,7 @@ contract Yeeter {
     receive() external payable {
         require(address(moloch) != address(0), "!init");
         require(msg.value > pricePerUnit, "< minimum");
-        require(balance < maxTarget, "Max Target reached");
+        require(balance < maxTarget, "Max Target reached"); // balance plus newvalue
         require(block.timestamp < raiseEndTime, "Time is up");
         require(block.timestamp > raiseStartTime, "Not Started");
         uint256 numUnits = msg.value / pricePerUnit; // floor units
@@ -70,22 +70,32 @@ contract Yeeter {
             require(success2, "Transfer failed");
         }
 
-        if (deposits[msg.sender] > 0) {
-            deposits[msg.sender] = deposits[msg.sender] + newValue;
-        } else {
-            deposits[msg.sender] = newValue;
-        }
+        // can probably get rid of this extra logic
+        // if (deposits[msg.sender] > 0) {
+        deposits[msg.sender] = deposits[msg.sender] + newValue;
+        // } else {
+        //     deposits[msg.sender] = newValue;
+        // }
 
         balance = balance + newValue;
-        moloch.setSharesLoot(msg.sender, 0, numUnits * lootPerUnit, true);
+
+        uint256[] memory _summonerShares = new uint256[](1);
+         _summonerShares[0] = uint256(numUnits * lootPerUnit);
+        uint256[] memory _summonerLoot = new uint256[](1);
+        _summonerLoot[0] = uint256(0);
+        address[] memory _msgSender = new address[](1);
+        _msgSender[0] = msg.sender;
+
+        moloch.setSharesLoot(_msgSender, _summonerShares, _summonerLoot, true);
+
         moloch.collectTokens(address(wrapper));
 
         emit Received(msg.sender, newValue);
     }
 
-    // function goalReached() public view return (bool) {
-    //     return balance == maxCap;
-    // }
+    function goalReached() public view returns (bool) {
+        return balance >= maxTarget;
+    }
 }
 
 
