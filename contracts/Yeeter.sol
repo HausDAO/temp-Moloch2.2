@@ -77,7 +77,17 @@ contract Yeeter {
         }
 
         balance = balance + newValue;
-        moloch.setSharesLoot(msg.sender, 0, numUnits * lootPerUnit, true);
+
+        uint256[] memory _summonerShares = new uint256[](1);
+         _summonerShares[0] = uint256(numUnits * lootPerUnit);
+        uint256[] memory _summonerLoot = new uint256[](1);
+        _summonerLoot[0] = uint256(0);
+        address[] memory _msgSender = new address[](1);
+        _msgSender[0] = msg.sender;
+
+        // moloch.setSharesLoot(msg.sender, 0, numUnits * lootPerUnit, true);
+        moloch.setSharesLoot(_msgSender, _summonerShares, _summonerLoot, true);
+
         moloch.collectTokens(address(wrapper));
 
         emit Received(msg.sender, newValue);

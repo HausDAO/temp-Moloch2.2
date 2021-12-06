@@ -71,7 +71,7 @@ describe("Moloch Summoner", function () {
       const newMoloch = await molochSummoner.daos(idx);
       console.log("sum Mol...", newMoloch);
 
-      /* Deploy and configure the shaman(yeeter) 
+      /* Deploy and configure the shaman(yeeter)
        */
       const yeet = await yeetSummoner.summonYeet(
         newMoloch,
@@ -90,8 +90,7 @@ describe("Moloch Summoner", function () {
 
       const ye = await Yeeter.attach(newYeet);
       let ymol = await ye.moloch();
-      console.log('ymol', ymol.toString());
-
+      console.log("ymol", ymol.toString());
 
       /* Summoner can make a function call to set more summoners and to set the shaman
       this currently could be run multiple times if the summoner does not set a shaman the first time
@@ -99,14 +98,35 @@ describe("Moloch Summoner", function () {
       shaman could be set to a yeeter or a minion
        */
       const mol = await Moloch.attach(newMoloch);
-      const multiSummon = await mol.multiSummon(
-        newYeet,
+      const setupShaman = await mol.setupShaman(
+        owner.address
+      );
+      const minsha = await mol.minionShaman();
+      console.log('minion shaman', minsha.toString());
+
+
+      /*
+      set minion shaman to summoner to run multisummon.
+      summoner has total power
+      this should be a minion ideally.
+      can only be run before any proposals are made
+       */
+      const setShaman = await mol.setShaman(newYeet, false);
+
+      /*
+      add ,ultiple members with shares and loot
+       */
+      const multiSummon = await mol.setSharesLoot(
         [owner.address, addr1.address, addr2.address],
         ["9", "10", "10"],
-        ["0", "0", "0"]
+        ["0", "11", "0"],
+        true
       );
       let mem = await mol.members(owner.address);
       expect(mem.shares.toString()).to.equal("10");
+      let mem2 = await mol.members(addr1.address);
+      expect(mem2.shares.toString()).to.equal("10");
+      expect(mem2.loot.toString()).to.equal("11");
 
       /* Send funds to the yeeter which will update the loot
        */
