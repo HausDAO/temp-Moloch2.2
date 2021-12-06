@@ -363,22 +363,6 @@ contract Moloch is ReentrancyGuard {
         }
 
     }
-    function reconfigure (
-        uint256 _periodDuration,
-        uint256 _votingPeriodLength,
-        uint256 _gracePeriodLength,
-        uint256 _proposalDeposit,
-        uint256 _dilutionBound,
-        uint256 _processingReward
-    ) public onlyShaman {
-        // TODO: require no active
-        periodDuration = _periodDuration; 
-        votingPeriodLength = _votingPeriodLength;
-        gracePeriodLength = _gracePeriodLength;
-        proposalDeposit = _proposalDeposit; 
-        dilutionBound = _dilutionBound; 
-        processingReward = _processingReward;
-    }
 
     function setSharesLoot(
         address applicant,
@@ -387,6 +371,7 @@ contract Moloch is ReentrancyGuard {
         bool mint
     ) public onlyShaman {
         _setSharesLoot(applicant, shares, loot, mint);
+        emit Shaman(applicant, shares, loot, mint);
     }
 
     function _setSharesLoot(
@@ -438,7 +423,6 @@ contract Moloch is ReentrancyGuard {
             totalShares.add(shares).add(loot) <= MAX_NUMBER_OF_SHARES_AND_LOOT,
             "too many shares requested"
         );
-        emit Shaman(applicant, shares, loot, mint);
     }
 
     function init(
