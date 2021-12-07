@@ -1,6 +1,6 @@
 pragma solidity 0.6.1;
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 /**
  * @dev Contract module that helps prevent reentrant calls to a function.
@@ -142,8 +142,9 @@ contract Moloch is ReentrancyGuard {
     address public depositToken; // deposit token contract reference; default = wETH
 
     // can have multiple shamans, maybe first one is the 'minionshaman'
-    address public shaman; // shaman
-    address public minionShaman; // shaman
+    // address public shaman; // shaman
+    mapping(address => bool) public shamans;
+    address public adminShaman; // shaman
 
     // HARD-CODED LIMITS
     // These numbers are quite arbitrary; they are small enough to avoid overflows when doing calculations
@@ -321,8 +322,8 @@ contract Moloch is ReentrancyGuard {
     modifier onlyDelegateOrShaman() {
         require(
             members[memberAddressByDelegateKey[msg.sender]].shares > 0 ||
-                shaman == msg.sender ||
-                minionShaman == msg.sender,
+                shamans[msg.sender] ||
+                adminShaman == msg.sender,
             "not a delegate or shaman"
         );
         _;
@@ -332,17 +333,17 @@ contract Moloch is ReentrancyGuard {
         require(
             (members[msg.sender].shares > 0 ||
                 (members[msg.sender].loot > 0 && proposalCount == 0)) ||
-                (shaman == msg.sender || minionShaman == msg.sender),
+                (shamans[msg.sender] || adminShaman == msg.sender),
             "!shaman"
         );
         _;
     }
 
-    function setShaman(address _shaman, bool _isMinion) public onlyShamanOrNew {
+    function setShaman(address _shaman, bool _isMinion, bool _enable) public onlyShamanOrNew {
         if (_isMinion) {
-            minionShaman = _shaman;
+            adminShaman = _shaman;
         } else {
-            shaman = _shaman;
+            shamans[_shaman] = _enable;
         }
         emit SetShaman(_shaman, _isMinion);
     }
@@ -1429,7 +1430,7 @@ contract MolochSummoner is CloneFactory {
             _dilutionBound,
             _processingReward
         );
-        console.log("Summon complete", address(moloch));
+        
         daoIdx = daoIdx + 1;
         daos[daoIdx] = address(moloch);
         emit SummonComplete(
