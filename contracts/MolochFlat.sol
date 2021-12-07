@@ -333,7 +333,7 @@ contract Moloch is ReentrancyGuard {
         // totalShares and totalLoot // this would mean shamans must be setup before anything else
         // proposalCount == 0 // collectTokens could bring funds into the dao
         require(
-            (members[msg.sender].shares > 0 && totalShares.add(totalLoot) > 0) ||
+            (members[msg.sender].shares > 0 && totalShares.add(totalLoot) == 1) ||
                 (shamans[msg.sender] || adminShaman == msg.sender),
             "!shaman"
         );
