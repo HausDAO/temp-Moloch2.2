@@ -322,17 +322,18 @@ contract Moloch is ReentrancyGuard {
     modifier onlyDelegateOrShaman() {
         require(
             members[memberAddressByDelegateKey[msg.sender]].shares > 0 ||
-                shamans[msg.sender] ||
-                adminShaman == msg.sender,
-            "not a delegate or shaman"
+                (shamans[msg.sender] || adminShaman == msg.sender),
+            "!delegate || !shaman"
         );
         _;
     }
 
     modifier onlyShamanOrNew() {
+        // moloch.userTokenBalances(MOLOCH_GUILD_ADDR, molochCapitalToken) == 0
+        // totalShares and totalLoot // this would mean shamans must be setup before anything else
+        // proposalCount == 0 // collectTokens could bring funds into the dao
         require(
-            (members[msg.sender].shares > 0 ||
-                (members[msg.sender].loot > 0 && proposalCount == 0)) ||
+            (members[msg.sender].shares > 0 && totalShares.add(totalLoot) > 0) ||
                 (shamans[msg.sender] || adminShaman == msg.sender),
             "!shaman"
         );
@@ -348,7 +349,7 @@ contract Moloch is ReentrancyGuard {
         emit SetShaman(_shaman, _isMinion);
     }
 
-    // allow summoner to do this is no active props
+    // allow member to do this if no active props
     function setSharesLoot(
         address[] memory _summoners,
         uint256[] memory _summonerShares,
