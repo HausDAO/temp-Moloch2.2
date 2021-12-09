@@ -144,7 +144,6 @@ contract Moloch is ReentrancyGuard {
     // can have multiple shamans, maybe first one is the 'minionshaman'
     // address public shaman; // shaman
     mapping(address => bool) public shamans;
-    address public adminShaman; // shaman
 
     // HARD-CODED LIMITS
     // These numbers are quite arbitrary; they are small enough to avoid overflows when doing calculations
@@ -322,31 +321,36 @@ contract Moloch is ReentrancyGuard {
     modifier onlyDelegateOrShaman() {
         require(
             members[memberAddressByDelegateKey[msg.sender]].shares > 0 ||
-                (shamans[msg.sender] || adminShaman == msg.sender),
+                shamans[msg.sender],
             "!delegate || !shaman"
         );
         _;
     }
 
-    modifier onlyShamanOrNew() {
-        // moloch.userTokenBalances(MOLOCH_GUILD_ADDR, molochCapitalToken) == 0
-        // totalShares and totalLoot // this would mean shamans must be setup before anything else
-        // proposalCount == 0 // collectTokens could bring funds into the dao
-        require(
-            (members[msg.sender].shares > 0 && totalShares.add(totalLoot) > 0) ||
-                (shamans[msg.sender] || adminShaman == msg.sender),
-            "!shaman"
-        );
+    modifier onlyShaman() {
+        require(shamans[msg.sender], "!shaman");
         _;
     }
 
-    function setShaman(address _shaman, bool _isMinion, bool _enable) public onlyShamanOrNew {
-        if (_isMinion) {
-            adminShaman = _shaman;
-        } else {
-            shamans[_shaman] = _enable;
-        }
-        emit SetShaman(_shaman, _isMinion);
+    function setShaman(address _shaman, bool _enable) public onlyShaman {
+        shamans[_shaman] = _enable;
+        emit SetShaman(_shaman, _enable);
+    }
+
+    function setConfig(
+        uint256 _periodDuration,
+        uint256 _votingPeriodLength,
+        uint256 _gracePeriodLength,
+        uint256 _proposalDeposit,
+        uint256 _dilutionBound,
+        uint256 _processingReward
+    ) public onlyShaman {
+        periodDuration = _periodDuration;
+        votingPeriodLength = _votingPeriodLength;
+        gracePeriodLength = _gracePeriodLength;
+        proposalDeposit = _proposalDeposit;
+        dilutionBound = _dilutionBound;
+        processingReward = _processingReward;
     }
 
     // allow member to do this if no active props
@@ -355,7 +359,7 @@ contract Moloch is ReentrancyGuard {
         uint256[] memory _summonerShares,
         uint256[] memory _summonerLoot,
         bool mint
-    ) public onlyShamanOrNew {
+    ) public onlyShaman {
         require(_summoners.length == _summonerShares.length, "mismatch");
         require(_summoners.length == _summonerLoot.length, "mismatch");
         for (uint256 i = 0; i < _summoners.length; i++) {
@@ -427,6 +431,7 @@ contract Moloch is ReentrancyGuard {
 
     function init(
         address _summoner,
+        address _shaman,
         address[] calldata _approvedTokens,
         uint256 _periodDuration,
         uint256 _votingPeriodLength,
@@ -468,6 +473,8 @@ contract Moloch is ReentrancyGuard {
         members[_summoner] = Member(_summoner, 1, 0, true, 0, 0);
         memberAddressByDelegateKey[_summoner] = _summoner;
         totalShares = members[_summoner].shares;
+
+        shamans[_shaman] = true;
 
         for (uint256 i = 0; i < _approvedTokens.length; i++) {
             require(
@@ -1399,6 +1406,7 @@ contract MolochSummoner is CloneFactory {
 
     event SummonComplete(
         address indexed moloch,
+        address _shaman,
         address[] tokens,
         uint256 summoningTime,
         uint256 periodDuration,
@@ -1411,6 +1419,7 @@ contract MolochSummoner is CloneFactory {
 
     function summonMoloch(
         address _summoner,
+        address _shaman,
         address[] memory _approvedTokens,
         uint256 _periodDuration,
         uint256 _votingPeriodLength,
@@ -1423,6 +1432,7 @@ contract MolochSummoner is CloneFactory {
 
         moloch.init(
             _summoner,
+            _shaman,
             _approvedTokens,
             _periodDuration,
             _votingPeriodLength,
@@ -1431,11 +1441,12 @@ contract MolochSummoner is CloneFactory {
             _dilutionBound,
             _processingReward
         );
-        
+
         daoIdx = daoIdx + 1;
         daos[daoIdx] = address(moloch);
         emit SummonComplete(
             address(moloch),
+            _shaman,
             _approvedTokens,
             now,
             _periodDuration,
