@@ -15,7 +15,7 @@ let Moloch;
 let Yeeter;
 
 let yeetContract;
-let molochContract
+let molochContract;
 
 describe("Moloch Summoner", function () {
   beforeEach(async function () {
@@ -44,47 +44,46 @@ describe("Moloch Summoner", function () {
     molochSummoner = await MolochSummoner.deploy(moloch.address);
     await molochSummoner.deployed();
 
-
     /* Summon new dao 
       Summoner will have one share
       */
-      const sum = await molochSummoner.summonMoloch(
-        owner.address,
-        [wrapper.address],
-        60,
-        1,
-        1,
-        0,
-        3,
-        0
-      );
-      const idx = await molochSummoner.daoIdx();
-      const newMoloch = await molochSummoner.daos(idx);
+    const sum = await molochSummoner.summonMoloch(
+      owner.address,
+      owner.address,
+      [wrapper.address],
+      60,
+      1,
+      1,
+      0,
+      3,
+      0
+    );
+    const idx = await molochSummoner.daoIdx();
+    const newMoloch = await molochSummoner.daos(idx);
 
-      /* Deploy and configure the shaman(yeeter)
+    /* Deploy and configure the shaman(yeeter)
       max target is 100 eth
       10 units per addr
        */
-      const yeet = await yeetSummoner.summonYeet(
-        newMoloch,
-        wrapper.address,
-        ethers.utils.parseUnits("100", "ether"),
-        "1622898000000", // 
-        "0", 
-        "10",
-        ethers.utils.parseUnits("1", "ether"),
-        "200"
-      );
+    const yeet = await yeetSummoner.summonYeet(
+      newMoloch,
+      wrapper.address,
+      ethers.utils.parseUnits("100", "ether"),
+      "1622898000000", //
+      "0",
+      "10",
+      ethers.utils.parseUnits("1", "ether"),
+      "200"
+    );
 
-      const yeetIdx = await yeetSummoner.yeetIdx();
-      const newYeet = await yeetSummoner.yeeters(yeetIdx);
+    const yeetIdx = await yeetSummoner.yeetIdx();
+    const newYeet = await yeetSummoner.yeeters(yeetIdx);
 
-      yeetContract = await Yeeter.attach(newYeet);
-      molochContract = await Moloch.attach(newMoloch);
+    yeetContract = await Yeeter.attach(newYeet);
+    molochContract = await Moloch.attach(newMoloch);
   });
   describe("Deployment", function () {
     it("Should add multiple summoners", async function () {
-
       /* Summoner can make a function call to set more summoners and to set the shaman
       this currently could be run multiple times if the summoner does not set a shaman the first time
        */
@@ -99,35 +98,41 @@ describe("Moloch Summoner", function () {
       let mem2 = await molochContract.members(addr1.address);
       expect(mem2.shares.toString()).to.equal("10");
       expect(mem2.loot.toString()).to.equal("11");
-
-
     });
     it("should not be able to add multple members after a proposal", async function () {
-      'TODO'
+      "TODO";
     });
     it("should be able to add a yeeter shaman", async function () {
-            /*
+      /*
         set yeeter as shaman
        */
-        const setShaman = await molochContract.setShaman(yeetContract.address, false, true);
+      const setShaman = await molochContract.setShaman(
+        yeetContract.address,
+        true
+      );
     });
-    it("should be able to add an admin shaman", async function () {
+    it("should be able to disable a shaman", async function () {
       /*
-      set yeeter as shaman
-      */
-      const setShaman = await molochContract.setShaman(owner.address, true, true);
-  });
+  set yeeter as shaman
+ */
+      const setShaman = await molochContract.setShaman(owner.address, false);
+      const unsetShaman = molochContract.setShaman(owner.address, true);
+      expect(unsetShaman).to.be.revertedWith("!shaman");
+
+    });
   });
   describe("Yeeter tests", function () {
     beforeEach(async function () {
-        /*
+      /*
         set yeeter as shaman
        */
-        const setShaman = await molochContract.setShaman(yeetContract.address, false, true);
+      const setShaman = await molochContract.setShaman(
+        yeetContract.address,
+        true
+      );
     });
     it("should take deposits for loot", async function () {
       const [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
-
 
       /* Send funds to the yeeter which will update the loot
        */
@@ -149,7 +154,6 @@ describe("Moloch Summoner", function () {
     });
   });
   describe("Yeeter config", function () {
-
     it("it should have different yeeter configs", async function () {
       const [owner, addr1, addr2, ...addrs] = await ethers.getSigners();
 
@@ -158,7 +162,7 @@ describe("Moloch Summoner", function () {
         wrapper.address,
         ethers.utils.parseUnits("100", "ether"),
         "1622898000", // in the past
-        "0", 
+        "0",
         "10",
         ethers.utils.parseUnits("1", "ether"),
         "200"
@@ -169,7 +173,10 @@ describe("Moloch Summoner", function () {
 
       yeetContractexpiered = await Yeeter.attach(newYeet);
 
-      const setShaman = await molochContract.setShaman(yeetContractexpiered.address, false, true);
+      const setShaman = await molochContract.setShaman(
+        yeetContractexpiered.address,
+        true
+      );
       /* Send funds to the yeeter which will update the loot
        */
       let params = {
@@ -178,7 +185,6 @@ describe("Moloch Summoner", function () {
       };
       const stx = owner.sendTransaction(params);
       expect(stx).to.be.revertedWith("Time is up");
-
     });
   });
 });
