@@ -141,6 +141,9 @@ contract Moloch is ReentrancyGuard {
 
     address public depositToken; // deposit token contract reference; default = wETH
 
+    uint256 public spamPrevention;
+    address public spamPreventionAddr;
+
     // can have multiple shamans, maybe first one is the 'minionshaman'
     // address public shaman; // shaman
     mapping(address => bool) public shamans;
@@ -222,6 +225,10 @@ contract Moloch is ReentrancyGuard {
         uint256 shares,
         uint256 loot,
         bool mint
+    );
+    event SpamPrevention(
+        address _spamPreventionAddr,
+        uint256 _spamPrevention
     );
     event SetShaman(address indexed shaman, bool isMinion);
     event TokensCollected(address indexed token, uint256 amountToCollect);
@@ -338,19 +345,22 @@ contract Moloch is ReentrancyGuard {
     }
 
     function setConfig(
-        uint256 _periodDuration,
-        uint256 _votingPeriodLength,
-        uint256 _gracePeriodLength,
-        uint256 _proposalDeposit,
-        uint256 _dilutionBound,
-        uint256 _processingReward
+        address _spamPreventionAddr,
+        uint256 _spamPrevention
+        // uint256 _periodDuration,
+        // uint256 _votingPeriodLength,
+        // uint256 _gracePeriodLength,
+        // uint256 _proposalDeposit,
+        // uint256 _dilutionBound,
+        // uint256 _processingReward
     ) public onlyShaman {
-        periodDuration = _periodDuration;
-        votingPeriodLength = _votingPeriodLength;
-        gracePeriodLength = _gracePeriodLength;
-        proposalDeposit = _proposalDeposit;
-        dilutionBound = _dilutionBound;
-        processingReward = _processingReward;
+        spamPreventionAddr = _spamPreventionAddr;
+        spamPrevention = _spamPrevention;
+
+        emit SpamPrevention(
+            _spamPreventionAddr,
+            _spamPrevention
+        );
     }
 
     // allow member to do this if no active props
@@ -639,6 +649,11 @@ contract Moloch is ReentrancyGuard {
         string memory details,
         bool[6] memory flags
     ) internal {
+        require(msg.value > spamPrevention, "spam prevention on");
+        if (spamPrevention > 0) {
+            (bool success, ) = spamPreventionAddr.call.value(msg.value)("");
+            require(success, "failed");
+        }
         Proposal memory proposal = Proposal({
             applicant: applicant,
             proposer: msg.sender,
