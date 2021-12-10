@@ -347,13 +347,9 @@ contract Moloch is ReentrancyGuard {
     function setConfig(
         address _spamPreventionAddr,
         uint256 _spamPrevention
-        // uint256 _periodDuration,
-        // uint256 _votingPeriodLength,
-        // uint256 _gracePeriodLength,
-        // uint256 _proposalDeposit,
-        // uint256 _dilutionBound,
-        // uint256 _processingReward
     ) public onlyShaman {
+        // could brick a dao if this is set too high and only the minion can change
+        require(_spamPrevention < 1000000000000000000, "fee too high");
         spamPreventionAddr = _spamPreventionAddr;
         spamPrevention = _spamPrevention;
 
