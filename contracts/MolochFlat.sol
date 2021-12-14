@@ -1,4 +1,5 @@
-pragma solidity 0.6.1;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.0;
 
 // import "hardhat/console.sol";
 
@@ -18,7 +19,7 @@ pragma solidity 0.6.1;
  * to protect against it, check out our blog post
  * https://blog.openzeppelin.com/reentrancy-after-istanbul/[Reentrancy After Istanbul].
  */
-contract ReentrancyGuard {
+abstract contract ReentrancyGuard {
     // Booleans are more expensive than uint256 or any type that takes up a full
     // word because each write operation emits an extra SLOAD to first read the
     // slot's contents, replace the bits taken up by the boolean, and then write
@@ -35,7 +36,7 @@ contract ReentrancyGuard {
 
     uint256 private _status;
 
-    constructor() internal {
+    constructor() {
         _status = _NOT_ENTERED;
     }
 
@@ -90,42 +91,7 @@ interface IERC20 {
     );
 }
 
-library SafeMath {
-    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-        if (a == 0) {
-            return 0;
-        }
-
-        uint256 c = a * b;
-        require(c / a == b);
-
-        return c;
-    }
-
-    function div(uint256 a, uint256 b) internal pure returns (uint256) {
-        require(b > 0);
-        uint256 c = a / b;
-
-        return c;
-    }
-
-    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-        require(b <= a);
-        uint256 c = a - b;
-
-        return c;
-    }
-
-    function add(uint256 a, uint256 b) internal pure returns (uint256) {
-        uint256 c = a + b;
-        require(c >= a);
-
-        return c;
-    }
-}
-
 contract Moloch is ReentrancyGuard {
-    using SafeMath for uint256;
 
     /***************
     GLOBAL CONSTANTS
@@ -263,6 +229,7 @@ contract Moloch is ReentrancyGuard {
         bool exists; // always true once a member has been created
         uint256 highestIndexYesVote; // highest proposal index # on which the member voted YES
         uint256 jailed; // set to proposalIndex of a passing guild kick proposal for this member, prevents voting on and sponsoring proposals
+        
     }
 
     struct Proposal {
@@ -281,8 +248,9 @@ contract Moloch is ReentrancyGuard {
         bool[6] flags; // [sponsored, processed, didPass, cancelled, whitelist, guildkick]
         string details; // proposal details - could be IPFS hash, plaintext, or JSON
         uint256 maxTotalSharesAndLootAtYesVote; // the maximum # of total shares encountered at a yes vote on this proposal
-        mapping(address => Vote) votesByMember; // the votes on this proposal by each member
     }
+
+    mapping(uint256 => mapping(address => Vote)) voteHistory; // maps voting decisions on proposals proposal => member => voted
 
     mapping(address => bool) public tokenWhitelist;
     address[] public approvedTokens;
@@ -386,10 +354,8 @@ contract Moloch is ReentrancyGuard {
     ) internal {
         if (mint) {
             if (members[applicant].exists) {
-                members[applicant].shares = members[applicant].shares.add(
-                    shares
-                );
-                members[applicant].loot = members[applicant].loot.add(loot);
+                members[applicant].shares = members[applicant].shares + shares;
+                members[applicant].loot = members[applicant].loot + loot;
 
                 // the applicant is a new member, create a new record for them
             } else {
@@ -415,16 +381,16 @@ contract Moloch is ReentrancyGuard {
                 );
                 memberAddressByDelegateKey[applicant] = applicant;
             }
-            totalShares = totalShares.add(shares);
-            totalLoot = totalLoot.add(loot);
+            totalShares = totalShares + shares;
+            totalLoot = totalLoot + loot;
         } else {
-            members[applicant].shares = members[applicant].shares.sub(shares);
-            members[applicant].loot = members[applicant].loot.sub(loot);
-            totalShares = totalShares.sub(shares);
-            totalLoot = totalLoot.sub(loot);
+            members[applicant].shares = members[applicant].shares - shares;
+            members[applicant].loot = members[applicant].loot - loot;
+            totalShares = totalShares - shares;
+            totalLoot = totalLoot - loot;
         }
         require(
-            totalShares.add(shares).add(loot) <= MAX_NUMBER_OF_SHARES_AND_LOOT,
+            totalShares + shares + loot <= MAX_NUMBER_OF_SHARES_AND_LOOT,
             "too many shares requested"
         );
     }
@@ -495,7 +461,7 @@ contract Moloch is ReentrancyGuard {
         proposalDeposit = _proposalDeposit;
         dilutionBound = _dilutionBound;
         processingReward = _processingReward;
-        summoningTime = now;
+        summoningTime = block.timestamp;
         initialized = true;
     }
 
@@ -513,7 +479,7 @@ contract Moloch is ReentrancyGuard {
         string memory details
     ) public nonReentrant returns (uint256 proposalId) {
         require(
-            sharesRequested.add(lootRequested) <= MAX_NUMBER_OF_SHARES_AND_LOOT,
+            (sharesRequested + lootRequested) <= MAX_NUMBER_OF_SHARES_AND_LOOT,
             "too many shares requested"
         );
         require(
@@ -746,9 +712,9 @@ contract Moloch is ReentrancyGuard {
             getCurrentPeriod(),
             proposalQueue.length == 0
                 ? 0
-                : proposals[proposalQueue[proposalQueue.length.sub(1)]]
+                : proposals[proposalQueue[proposalQueue.length - 1]]
                     .startingPeriod
-        ).add(1);
+        ) + 1;
 
         proposal.startingPeriod = startingPeriod;
 
@@ -764,7 +730,7 @@ contract Moloch is ReentrancyGuard {
             msg.sender,
             memberAddress,
             proposalId,
-            proposalQueue.length.sub(1),
+            proposalQueue.length - 1,
             startingPeriod
         );
     }
@@ -796,7 +762,7 @@ contract Moloch is ReentrancyGuard {
             "proposal voting period has expired"
         );
         require(
-            proposal.votesByMember[memberAddress] == Vote.Null,
+            voteHistory[proposalIndex][memberAddress] == Vote.Null,
             "member has already voted"
         );
         require(
@@ -804,10 +770,10 @@ contract Moloch is ReentrancyGuard {
             "vote must be either Yes or No"
         );
 
-        proposal.votesByMember[memberAddress] = vote;
+        voteHistory[proposalIndex][memberAddress] = vote;
 
         if (vote == Vote.Yes) {
-            proposal.yesVotes = proposal.yesVotes.add(member.shares);
+            proposal.yesVotes = proposal.yesVotes + member.shares;
 
             // set highest index (latest) yes vote - must be processed for member to ragequit
             if (proposalIndex > member.highestIndexYesVote) {
@@ -816,15 +782,13 @@ contract Moloch is ReentrancyGuard {
 
             // set maximum of total shares encountered at a yes vote - used to bound dilution for yes voters
             if (
-                totalShares.add(totalLoot) >
+                (totalShares + totalLoot) >
                 proposal.maxTotalSharesAndLootAtYesVote
             ) {
-                proposal.maxTotalSharesAndLootAtYesVote = totalShares.add(
-                    totalLoot
-                );
+                proposal.maxTotalSharesAndLootAtYesVote = totalShares + totalLoot;
             }
         } else if (vote == Vote.No) {
-            proposal.noVotes = proposal.noVotes.add(member.shares);
+            proposal.noVotes = proposal.noVotes + member.shares;
         }
 
         // NOTE: subgraph indexes by proposalId not proposalIndex since proposalIndex isn't set untill it's been sponsored but proposal is created on submission
@@ -854,9 +818,8 @@ contract Moloch is ReentrancyGuard {
 
         // Make the proposal fail if the new total number of shares and loot exceeds the limit
         if (
-            totalShares.add(totalLoot).add(proposal.sharesRequested).add(
-                proposal.lootRequested
-            ) > MAX_NUMBER_OF_SHARES_AND_LOOT
+            (totalShares + totalLoot + proposal.sharesRequested + proposal.lootRequested) >
+            MAX_NUMBER_OF_SHARES_AND_LOOT
         ) {
             didPass = false;
         }
@@ -988,9 +951,9 @@ contract Moloch is ReentrancyGuard {
             member.jailed = proposalIndex;
 
             // transfer shares to loot
-            member.loot = member.loot.add(member.shares);
-            totalShares = totalShares.sub(member.shares);
-            totalLoot = totalLoot.add(member.shares);
+            member.loot = member.loot + member.shares;
+            totalShares = totalShares - member.shares;
+            totalLoot = totalLoot + member.shares;
             member.shares = 0; // revoke all shares
         }
 
@@ -1012,7 +975,7 @@ contract Moloch is ReentrancyGuard {
 
         // Make the proposal fail if the dilutionBound is exceeded
         if (
-            (totalShares.add(totalLoot)).mul(dilutionBound) <
+            (totalShares + totalLoot) * (dilutionBound) <
             proposal.maxTotalSharesAndLootAtYesVote
         ) {
             didPass = false;
@@ -1040,9 +1003,7 @@ contract Moloch is ReentrancyGuard {
 
         require(
             getCurrentPeriod() >=
-                proposal.startingPeriod.add(votingPeriodLength).add(
-                    gracePeriodLength
-                ),
+            proposal.startingPeriod + votingPeriodLength + gracePeriodLength,
             "proposal is not ready to be processed"
         );
         require(
@@ -1051,7 +1012,7 @@ contract Moloch is ReentrancyGuard {
         );
         require(
             proposalIndex == 0 ||
-                proposals[proposalQueue[proposalIndex.sub(1)]].flags[1],
+                proposals[proposalQueue[proposalIndex - 1]].flags[1],
             "previous proposal must be processed"
         );
     }
@@ -1067,7 +1028,7 @@ contract Moloch is ReentrancyGuard {
             ESCROW,
             sponsor,
             depositToken,
-            proposalDeposit.sub(processingReward)
+            proposalDeposit - processingReward
         );
     }
 
@@ -1084,7 +1045,7 @@ contract Moloch is ReentrancyGuard {
         uint256 sharesToBurn,
         uint256 lootToBurn
     ) internal {
-        uint256 initialTotalSharesAndLoot = totalShares.add(totalLoot);
+        uint256 initialTotalSharesAndLoot = totalShares + totalLoot;
 
         // Member storage member = members[memberAddress];
 
@@ -1099,7 +1060,7 @@ contract Moloch is ReentrancyGuard {
             "cannot ragequit until highest index proposal member voted YES on is processed"
         );
 
-        uint256 sharesAndLootToBurn = sharesToBurn.add(lootToBurn);
+        uint256 sharesAndLootToBurn = sharesToBurn + lootToBurn;
 
         // burn shares and loot
         _setSharesLoot(memberAddress, sharesToBurn, lootToBurn, false);
@@ -1147,7 +1108,7 @@ contract Moloch is ReentrancyGuard {
     function withdrawBalances(
         address[] memory tokens,
         uint256[] memory amounts,
-        bool max
+        bool shouldWithdrawMax
     ) public nonReentrant {
         require(
             tokens.length == amounts.length,
@@ -1156,7 +1117,7 @@ contract Moloch is ReentrancyGuard {
 
         for (uint256 i = 0; i < tokens.length; i++) {
             uint256 withdrawAmount = amounts[i];
-            if (max) {
+            if (shouldWithdrawMax) {
                 // withdraw the maximum balance
                 withdrawAmount = userTokenBalances[msg.sender][tokens[i]];
             }
@@ -1180,9 +1141,7 @@ contract Moloch is ReentrancyGuard {
         onlyDelegateOrShaman
         nonReentrant
     {
-        uint256 amountToCollect = IERC20(token).balanceOf(address(this)).sub(
-            userTokenBalances[TOTAL][token]
-        );
+        uint256 amountToCollect = IERC20(token).balanceOf(address(this)) - userTokenBalances[TOTAL][token];
         // only collect if 1) there are tokens to collect 2) token is whitelisted 3) token has non-zero balance
         require(amountToCollect > 0, "no tokens to collect");
         require(tokenWhitelist[token], "token to collect must be whitelisted");
@@ -1266,7 +1225,7 @@ contract Moloch is ReentrancyGuard {
         view
         returns (bool)
     {
-        return getCurrentPeriod() >= startingPeriod.add(votingPeriodLength);
+        return getCurrentPeriod() >= startingPeriod + votingPeriodLength;
     }
 
     /***************
@@ -1277,7 +1236,7 @@ contract Moloch is ReentrancyGuard {
     }
 
     function getCurrentPeriod() public view returns (uint256) {
-        return now.sub(summoningTime).div(periodDuration);
+        return (block.timestamp - summoningTime) / (periodDuration);
     }
 
     function getProposalQueueLength() public view returns (uint256) {
@@ -1311,9 +1270,7 @@ contract Moloch is ReentrancyGuard {
             "proposal does not exist"
         );
         return
-            proposals[proposalQueue[proposalIndex]].votesByMember[
-                memberAddress
-            ];
+            voteHistory[proposalIndex][memberAddress];
     }
 
     function getTokenCount() public view returns (uint256) {
@@ -1400,7 +1357,7 @@ contract MolochSummoner is CloneFactory {
 
     // Moloch private moloch; // moloch contract
 
-    constructor(address _template) public {
+    constructor(address _template) {
         template = _template;
     }
 
@@ -1448,7 +1405,7 @@ contract MolochSummoner is CloneFactory {
             address(moloch),
             _shaman,
             _approvedTokens,
-            now,
+            block.timestamp,
             _periodDuration,
             _votingPeriodLength,
             _gracePeriodLength,

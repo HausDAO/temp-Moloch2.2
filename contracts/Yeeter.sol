@@ -1,4 +1,5 @@
-pragma solidity ^0.6.1;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity >=0.8.0;
 
 import "./MolochFlat.sol";
 import "./Wrapper.sol";
@@ -56,7 +57,7 @@ contract Yeeter {
         );
 
         // wrap
-        (bool success, ) = address(wrapper).call.value(newValue)("");
+        (bool success, ) = address(wrapper).call{value: newValue}("");
         require(success, "wrap failed");
         // send to dao
         require(
@@ -66,7 +67,7 @@ contract Yeeter {
 
         if (msg.value > newValue) {
             // Return the extra money to the minter.
-            (bool success2, ) = msg.sender.call.value(msg.value - newValue)("");
+            (bool success2, ) = msg.sender.call{value: msg.value - newValue}("");
             require(success2, "Transfer failed");
         }
 
@@ -101,7 +102,7 @@ contract Yeeter {
 
 contract CloneFactory1 {
     // implementation of eip-1167 - see https://eips.ethereum.org/EIPS/eip-1167
-    function createClone(address payable target) internal returns (address result) {
+    function createClone(address target) internal returns (address result) {
         bytes20 targetBytes = bytes20(target);
         assembly {
             let clone := mload(0x40)
@@ -126,7 +127,7 @@ contract YeetSummoner is CloneFactory1 {
 
     // Moloch private moloch; // moloch contract
 
-    constructor(address payable _template) public {
+    constructor(address payable _template) {
         template = _template;
     }
 
